@@ -1,0 +1,1263 @@
+import  {
+    CheckBox, ComboBox, ScrollView, Slider, Palette, AboutSlint
+}
+from "std-widgets.slint";
+import { OptimizationPanel, OptimizationRow, TunnelRow, CpuRow } from "optimization.slint";
+export { OptimizationRow, TunnelRow }
+export struct ServerRow  {
+    id: string, caption: string, online: string
+}
+export struct NewsRow  {
+    title: string, body: string, image: image
+}
+component ActionButton inherits Rectangle  {
+    in property <string> label;
+    in property <bool> primary: false;
+    in property <bool> enabled: true;
+    callback clicked;
+    min-height: 38px;
+    border-radius: 5px;
+    background: !root.enabled ? #282e37 : root.primary ? (area.has-hover ? #ffb258 : #ed9435) : (area.has-hover ? #3a4452 : #2b3440);
+    Text  {
+        text:root.label;
+        color: !root.enabled ? #657184 : root.primary ? #10161d : #d9e0e9;
+        font-size:13px;
+        font-weight:600;
+        overflow:elide;
+        horizontal-alignment:center;
+        vertical-alignment:center;
+    }
+    area := TouchArea  {
+        enabled:root.enabled;
+        clicked=> {
+            root.clicked();
+        }
+    }
+}
+component Input inherits Rectangle  {
+    in-out property <string> text;
+    in property <string> placeholder;
+    in property <bool> secret: false;
+    in property <bool> enabled: true;
+    callback accepted;
+    height:44px;
+    background:#141b24;
+    border-width:1px;
+    border-color:editor.has-focus ? #ed9435 : #354151;
+    border-radius:5px;
+    editor := TextInput  {
+        x:12px;
+        width:parent.width - 24px;
+        height:100%;
+        text<=>root.text;
+        color:#eff3f8;
+        vertical-alignment:center;
+        single-line:true;
+        input-type:root.secret ? InputType.password : InputType.text;
+        enabled:root.enabled;
+        accepted=> {
+            root.accepted();
+        }
+    }
+    if root.text=="" : Text  {
+        x:12px;
+        width:parent.width - 24px;
+        height:100%;
+        text:root.placeholder;
+        color:#718196;
+        vertical-alignment:center;
+    }
+}
+export component LauncherWindow inherits Window  {
+    title:"EXBO Launcher New";
+    icon:@image-url("../assets/images/app-icon.png");
+    preferred-width:1180px;
+    preferred-height:780px;
+    min-width:800px;
+    min-height:480px;
+    no-frame:true;
+    resize-border-width:5px;
+    background:#111820;
+    default-font-family:"Segoe UI";
+    default-font-size:14px;
+    in-out property <string> page:"auth";
+    in property <string> app-version;
+    in-out property <string> tab:"overview";
+    in property <[OptimizationRow]> opt-rows;
+    in property <[TunnelRow]> opt-tunnels;
+    in property <[CpuRow]> opt-cpus;
+    in-out property <bool> opt-cpu-active:false;
+    in property <bool> opt-cpu-supported:false;
+    in property <string> opt-cpu-status;
+    in property <string> opt-hardware-ru;
+    in property <string> opt-hardware-en;
+    in-out property <bool> opt-active:false;
+    in-out property <string> opt-name;
+    in-out property <bool> opt-dirty:false;
+    in-out property <int> opt-category:0;
+    in-out property <int> opt-region:0;
+    in-out property <int> opt-search-mode:0;
+    in property <bool> opt-network-busy:false;
+    in property <bool> opt-network-best:false;
+    in property <string> opt-network-status;
+    in property <string> opt-preview;
+    in property <bool> opt-applied-active:false;
+    callback opt-edit(int,string,bool);
+    in-out property <bool> en:false;
+    in-out property <string> login;
+    in-out property <string> password;
+    in-out property <string> code;
+    in-out property <string> email;
+    in-out property <string> new-password;
+    in property <string> email-warning;
+    in-out property <bool> remember-email:false;
+    in-out property <bool> auto-login:false;
+    in property <string> auth-step:"password";
+    in property <string> display-login;
+    in property <string> status:"Готов к работе";
+    in property <string> error-message;
+    in property <bool> busy:false;
+    in property <bool> downloading:false;
+    in property <bool> paused:false;
+    in property <bool> running:false;
+    in property <float> progress:0;
+    in property <string> progress-label;
+    in property <[ServerRow]> servers;
+    in property <[NewsRow]> news;
+    in property <image> news-fallback:@image-url("../assets/images/news-background.png");
+    in-out property <int> selected-server:0;
+    in property <string> server-title:"STALCRAFT: X";
+    in property <string> server-description;
+    in property <string> server-online;
+    in property <image> fallback-background:@image-url("../assets/images/hero.svg");
+    in property <image> server-background:root.fallback-background;
+    in property <bool> installed:false;
+    in property <bool> license-required:false;
+    in property <[string]> accounts;
+    in-out property <string> selected-account;
+    in-out property <string> install-path;
+    in-out property <string> legacy-root;
+    in-out property <string> update-feed;
+    in-out property <float> ram:0.5;
+    in property <string> ram-label;
+    in-out property <bool> tray:true;
+    in-out property <bool> autostart:false;
+    in-out property <bool> start-on-downloaded:true;
+    in-out property <bool> verify-files-on-launch:false;
+    in-out property <bool> defender:true;
+    in property <string> defender-status;
+    in-out property <int> p2p:1;
+    in-out property <int> exit-mode:2;
+    in-out property <string> download-limit:"0";
+    in-out property <string> upload-limit:"0";
+    in-out property <string> confirm-action;
+    in-out property <string> confirm-title;
+    in-out property <string> confirm-body;
+    private property <bool> show-about:false;
+    private property <length> auth-scroll-y:0px;
+    changed auth-step => { root.auth-scroll-y=0px; }
+    callback action(string);
+    callback select-server(int);
+    callback drag-window;
+    callback minimize-window;
+    callback maximize-window;
+    callback close-window;
+    init =>  {
+        Palette.color-scheme = ColorScheme.dark;
+    }
+    VerticalLayout  {
+        padding:0px;
+        spacing:0px;
+        Rectangle  {
+            height:44px;
+            background:#0f151d;
+            TouchArea  {
+                pointer-event(e)=> {
+                    if e.kind==PointerEventKind.down && e.button==PointerEventButton.left  {
+                        root.drag-window();
+                    }
+                }
+            }
+            HorizontalLayout  {
+                padding-left:22px;
+                padding-right:6px;
+                spacing:14px;
+                Text  {
+                    text:"EXBO";
+                    color:#edf3f9;
+                    font-size:19px;
+                    font-weight:800;
+                    vertical-alignment:center;
+                }
+                Text  {
+                    text:"LAUNCHER";
+                    color:#627389;
+                    font-size:10px;
+                    letter-spacing:2px;
+                    vertical-alignment:center;
+                }
+                Rectangle  {
+                    horizontal-stretch:1;
+                }
+                TouchArea  {
+                    width:44px;
+                    clicked=> {
+                        root.en=!root.en;
+                    }
+                    Text  {
+                        text:root.en ? "EN" : "RU";
+                        color:#a9b8ca;
+                        horizontal-alignment:center;
+                        vertical-alignment:center;
+                    }
+                }
+                TouchArea  {
+                    width:38px;
+                    clicked=> {
+                        root.minimize-window();
+                    }
+                    Text  {
+                        text:"−";
+                        color:#b1bdcd;
+                        horizontal-alignment:center;
+                        vertical-alignment:center;
+                    }
+                }
+                TouchArea  {
+                    width:38px;
+                    clicked=> {
+                        root.maximize-window();
+                    }
+                    Text  {
+                        text:"□";
+                        color:#b1bdcd;
+                        horizontal-alignment:center;
+                        vertical-alignment:center;
+                    }
+                }
+                TouchArea  {
+                    width:38px;
+                    clicked=> {
+                        root.close-window();
+                    }
+                    Text  {
+                        text:"×";
+                        font-size:22px;
+                        color:#b1bdcd;
+                        horizontal-alignment:center;
+                        vertical-alignment:center;
+                    }
+                }
+            }
+        }
+        Rectangle  {
+            vertical-stretch:1;
+            HorizontalLayout  {
+                padding:0px;
+                spacing:0px;
+                if root.page=="auth" : Rectangle  {
+                    horizontal-stretch:root.page=="auth" ? 1 : 0;
+                    min-width:0px;
+                    max-width:100000px;
+                    Image  {
+                        source:@image-url("../assets/images/hero.svg");
+                        width:100%;
+                        height:100%;
+                        image-fit:cover;
+                    }
+                    Rectangle  {
+                        width:100%;
+                        height:100%;
+                        background:#0e1923b0;
+                    }
+                    VerticalLayout  {
+                        padding:root.width < 1000px ? 28px : 48px;
+                        spacing:18px;
+                        Rectangle  {
+                            vertical-stretch:1;
+                        }
+                        Text  {
+                            text:"STALCRAFT: X";
+                            color:white;
+                            font-size:root.width < 1000px ? 32px : 44px;
+                            font-weight:800;
+                        }
+                        Rectangle  {
+                            height:3px;
+                            width:60px;
+                            background:#ed9435;
+                        }
+                        Text  {
+                            text:root.en ? "Your journey starts here." : "Твой путь начинается здесь.";
+                            color:#bfcbd7;
+                            font-size:21px;
+                            wrap:word-wrap;
+                        }
+                        Text  {
+                            text:root.en ? "EXBO games, updates and news in one place." : "Игры EXBO, обновления и новости в одном месте.";
+                            color:#8699ad;
+                            wrap:word-wrap;
+                        }
+                        Rectangle  {
+                            vertical-stretch:1;
+                        }
+                    }
+                }
+                if root.page=="auth" : Rectangle  {
+                    width:root.width < 900px ? 400px : 440px;
+                    background:#1b2430;
+                    ScrollView {
+                      viewport-y<=>root.auth-scroll-y;
+                      viewport-height:auth-layout.preferred-height;
+                      auth-layout := VerticalLayout  {
+                        padding-left:42px;
+                        padding-right:42px;
+                        padding-top:24px;
+                        padding-bottom:26px;
+                        spacing:13px;
+                        Rectangle  {
+                            vertical-stretch:1;
+                        }
+                        Text  {
+                            text:root.en ? "Welcome back" : "С возвращением";
+                            font-size:28px;
+                            font-weight:700;
+                            color:#f0f5fa;
+                        }
+                        Text  {
+                            text:root.auth-step=="password" ? (root.en ? "Sign in to your EXBO account" : "Войдите в свой аккаунт EXBO") : root.auth-step=="totp" ? (root.en ? "Authenticator code" : "Код из приложения-аутентификатора") : root.auth-step=="email" ? (root.en ? "Confirm your email" : "Подтвердите электронную почту") : root.auth-step=="email-warning" ? (root.en ? "Confirm the requested email change" : "Подтвердите запрос на смену почты") : root.auth-step=="password-change" ? (root.en ? "Set a new password" : "Установите новый пароль") : root.auth-step=="distributor" ? (root.en ? "Finish signing in in your browser" : "Завершите вход в браузере") : (root.en ? "Enter the code from your email" : "Введите код из письма");
+                            color:#91a3b7;
+                            wrap:word-wrap;
+                        }
+                        Rectangle  {
+                            height:6px;
+                        }
+                        if root.auth-step=="email-warning" : Text  {
+                            text:root.email-warning;
+                            color:#e8b66f;
+                            wrap:word-wrap;
+                        }
+                        if root.auth-step=="email-warning" : CheckBox  {
+                            text:root.en ? "Remember this confirmation" : "Запомнить подтверждение";
+                            checked<=>root.remember-email;
+                        }
+                        if root.auth-step=="email-warning" : ActionButton  {
+                            label:root.en ? "Change email" : "Изменить почту";
+                            enabled:!root.busy;
+                            clicked=> {
+                                root.action("auth-change-email");
+                            }
+                        }
+                        if root.auth-step=="password" : Input  {
+                            text<=>root.login;
+                            placeholder:root.en ? "Email or username" : "Почта или логин";
+                            enabled:!root.busy;
+                            accepted=> {
+                                root.action("login");
+                            }
+                        }
+                        if root.auth-step=="password" : Input  {
+                            text<=>root.password;
+                            placeholder:root.en ? "Password" : "Пароль";
+                            secret:true;
+                            enabled:!root.busy;
+                            accepted=> {
+                                root.action("login");
+                            }
+                        }
+                        if root.auth-step=="password-change" : Input  {
+                            text<=>root.new-password;
+                            placeholder:root.en ? "New password" : "Новый пароль";
+                            secret:true;
+                            enabled:!root.busy;
+                            accepted=> {
+                                root.action("auth-submit");
+                            }
+                        }
+                        if root.auth-step=="email" : Input  {
+                            text<=>root.email;
+                            placeholder:root.en ? "New email (optional)" : "Новая почта (необязательно)";
+                            enabled:!root.busy;
+                            accepted=> {
+                                root.action("auth-submit");
+                            }
+                        }
+                        if root.auth-step=="mail" || root.auth-step=="totp" || root.auth-step=="email-code" : Input  {
+                            text<=>root.code;
+                            placeholder:root.en ? "Confirmation code" : "Код подтверждения";
+                            enabled:!root.busy;
+                            accepted=> {
+                                root.action("auth-submit");
+                            }
+                        }
+                        if root.auth-step=="password" : CheckBox  {
+                            text:root.en ? "Sign in automatically" : "Автоматический вход";
+                            checked<=>root.auto-login;
+                            enabled:!root.busy;
+                        }
+                        ActionButton  {
+                            label:root.busy ? (root.en ? "Please wait…" : "Подождите…") : root.auth-step=="password" ? (root.en ? "SIGN IN" : "ВОЙТИ") : root.auth-step=="distributor" ? (root.en ? "OPEN BROWSER" : "ОТКРЫТЬ БРАУЗЕР") : (root.en ? "CONTINUE" : "ПРОДОЛЖИТЬ");
+                            primary:true;
+                            enabled:!root.busy;
+                            clicked=> {
+                                root.action(root.auth-step=="password" ? "login" : root.auth-step=="distributor" ? "distributor-open" : "auth-submit");
+                            }
+                        }
+                        if root.auth-step=="password" : HorizontalLayout  {
+                            spacing:8px;
+                            ActionButton  {
+                                label:root.en ? "Register" : "Регистрация";
+                                clicked=> {
+                                    root.action("register");
+                                }
+                            }
+                            ActionButton  {
+                                label:root.en ? "Forgot password?" : "Забыли пароль?";
+                                clicked=> {
+                                    root.action("restore");
+                                }
+                            }
+                        }
+                        if root.auth-step=="password" : ActionButton  {
+                            label:root.en ? "Sign in with Steam" : "Войти через Steam";
+                            enabled:!root.busy;
+                            clicked=> {
+                                root.action("steam");
+                            }
+                        }
+                        if root.auth-step=="mail" || root.auth-step=="email-code" : ActionButton  {
+                            label:root.en ? "Resend code" : "Отправить код повторно";
+                            enabled:!root.busy;
+                            clicked=> {
+                                root.action("resend");
+                            }
+                        }
+                        if root.auth-step!="password" : ActionButton  {
+                            label:root.en ? "Back" : "Назад";
+                            enabled:!root.busy;
+                            clicked=> {
+                                root.action("auth-back");
+                            }
+                        }
+                        if root.accounts.length>0 && root.auth-step=="password" : HorizontalLayout  {
+                            ComboBox  {
+                                model:root.accounts;
+                                current-value<=>root.selected-account;
+                            }
+                            ActionButton  {
+                                label:root.en ? "Switch" : "Войти";
+                                width:90px;
+                                enabled:!root.busy;
+                                clicked=> {
+                                    root.action("account");
+                                }
+                            }
+                        }
+                        Text  {
+                            text:root.error-message;
+                            color:#ff9e92;
+                            font-size:12px;
+                            wrap:word-wrap;
+                            max-height:80px;
+                            min-height:0px;
+                            overflow:elide;
+                        }
+                        Rectangle  {
+                            vertical-stretch:1;
+                        }
+                        ActionButton  {
+                            label:root.en ? "Settings" : "Настройки";
+                            clicked=> {
+                                root.tab="settings";
+                                root.page="settings";
+                            }
+                        }
+                        ActionButton {
+                            label:root.en ? "Optimization" : "Оптимизация";
+                            clicked=> {root.tab="optimization";root.page="settings";}
+                        }
+                      }
+                    }
+                }
+                if root.page=="main" : Rectangle  {
+                    width:226px;
+                    background:#19222d;
+                    VerticalLayout  {
+                        padding:17px;
+                        spacing:10px;
+                        Text  {
+                            text:root.en ? "LIBRARY" : "БИБЛИОТЕКА";
+                            color:#73889f;
+                            font-size:10px;
+                            letter-spacing:2px;
+                            height:30px;
+                        }
+                        ScrollView {
+                          vertical-stretch:1;
+                          viewport-height:server-list.preferred-height;
+                          server-list := VerticalLayout {
+                            spacing:10px;
+                            for server[index] in root.servers : Rectangle  {
+                            height:68px;
+                            border-radius:5px;
+                            background:root.selected-server==index ? #303e50 : #222e3b;
+                            if root.selected-server==index : Rectangle  {
+                                x:0px;
+                                y:0px;
+                                width:3px;
+                                height:100%;
+                                background:#ed9435;
+                            }
+                            VerticalLayout  {
+                                padding:14px;
+                                spacing:5px;
+                                Text  {
+                                    text:server.caption;
+                                    color:#eef3f8;
+                                    font-weight:600;
+                                    overflow:elide;
+                                }
+                                Text  {
+                                    text:server.online;
+                                    color:#859bb3;
+                                    font-size:11px;
+                                }
+                            }
+                            TouchArea  {
+                                enabled:!root.downloading && !root.busy && !root.running;
+                                clicked=> {
+                                    root.select-server(index);
+                                    root.tab="overview";
+                                    root.page="main";
+                                }
+                            }
+                            }
+                          }
+                        }
+                        ActionButton  {
+                            label:root.en ? "Refresh servers" : "Обновить серверы";
+                            enabled:!root.busy && !root.downloading && !root.running;
+                            clicked=> {
+                                root.action("refresh");
+                            }
+                        }
+                        Text  {
+                            text:root.display-login;
+                            color:#dce6f0;
+                            font-weight:600;
+                            overflow:elide;
+                        }
+                        ActionButton  {
+                            label:root.en ? "Settings" : "Настройки";
+                            clicked=> {
+                                root.tab="settings";
+                            }
+                        }
+                        ActionButton {
+                            label:root.en ? "Optimization" : "Оптимизация";
+                            clicked=> {root.tab="optimization";}
+                        }
+                        ActionButton  {
+                            label:root.en ? "Support" : "Поддержка";
+                            clicked=> {
+                                root.action("support");
+                            }
+                        }
+                        ActionButton  {
+                            label:root.en ? "Sign out / switch account" : "Выйти / сменить аккаунт";
+                            enabled:!root.downloading && !root.running && !root.busy;
+                            clicked=> {
+                                root.action("logout");
+                            }
+                        }
+                    }
+                }
+                if root.page!="auth" : Rectangle  {
+                    horizontal-stretch:root.page!="auth" ? 1 : 0;
+                    background:#121b25;
+                    VerticalLayout  {
+                        padding:root.height < 600px ? 16px : 26px;
+                        spacing:root.height < 600px ? 10px : 16px;
+                        HorizontalLayout  {
+                            Text  {
+                                text:root.tab=="optimization" ? (root.en ? "Optimization" : "Оптимизация") : root.tab=="settings" ? (root.en ? "Settings" : "Настройки") : root.server-title;
+                                color:#eff5fb;
+                                font-size:26px;
+                                font-weight:700;
+                            }
+                            Rectangle  {
+                                horizontal-stretch:1;
+                            }
+                            if root.tab!="settings" && root.tab!="optimization" : ActionButton  {
+                                width:110px;
+                                label:root.en ? "News" : "Новости";
+                                clicked=> {
+                                    root.tab="news";
+                                    root.action("news");
+                                }
+                            }
+                            ActionButton  {
+                                width:110px;
+                                label:root.en ? "Overview" : "Главная";
+                                clicked=> {
+                                    if root.page=="settings"  {
+                                        root.page="auth";
+                                    }
+                                    else {
+                                        root.tab="overview";
+                                    }
+                                }
+                            }
+                        }
+                        if root.tab=="overview" : ScrollView {
+                          vertical-stretch:1;
+                          viewport-height:overview-layout.preferred-height;
+                          overview-layout := VerticalLayout {
+                            spacing:16px;
+                            Rectangle  {
+                            height:230px;
+                            border-radius:7px;
+                            clip:true;
+                            background:#253645;
+                            Image  {
+                                source:root.server-background;
+                                width:100%;
+                                height:100%;
+                                image-fit:cover;
+                            }
+                            Rectangle  {
+                                width:100%;
+                                height:100%;
+                                background:#0b1822a0;
+                            }
+                            VerticalLayout  {
+                                padding:27px;
+                                spacing:9px;
+                                Rectangle  {
+                                    vertical-stretch:1;
+                                }
+                                Text  {
+                                    text:root.server-title;
+                                    color:white;
+                                    font-size:35px;
+                                    font-weight:800;
+                                }
+                                Text  {
+                                    text:root.server-description;
+                                    color:#c5d3df;
+                                    wrap:word-wrap;
+                                    max-height:80px;
+                                    min-height:0px;
+                                }
+                                Text  {
+                                    text:root.server-online;
+                                    color:#edb06d;
+                                    font-size:12px;
+                                }
+                            }
+                        }
+                            HorizontalLayout  {
+                            spacing:9px;
+                            ActionButton  {
+                                label:"Discord";
+                                clicked=> {
+                                    root.action("discord");
+                                }
+                            }
+                            ActionButton  {
+                                label:"VK";
+                                clicked=> {
+                                    root.action("vk");
+                                }
+                            }
+                            ActionButton  {
+                                label:"YouTube";
+                                clicked=> {
+                                    root.action("youtube");
+                                }
+                            }
+                            ActionButton  {
+                                label:root.en ? "Website" : "Сайт";
+                                clicked=> {
+                                    root.action("website");
+                                }
+                            }
+                        }
+                            Rectangle  {
+                            height:146px;
+                            background:#1d2a38;
+                            border-radius:6px;
+                            VerticalLayout  {
+                                padding:16px;
+                                spacing:10px;
+                                Text  {
+                                    text:root.en ? "GAME FILES" : "ФАЙЛЫ ИГРЫ";
+                                    color:#839bb3;
+                                    font-size:10px;
+                                    letter-spacing:1px;
+                                }
+                                HorizontalLayout  {
+                                    Input  {
+                                        text<=>root.install-path;
+                                        placeholder:root.en ? "Installation folder" : "Каталог установки";
+                                        enabled:!root.downloading && !root.running && !root.busy;
+                                    }
+                                    ActionButton  {
+                                        width:90px;
+                                        label:root.en ? "Browse" : "Обзор";
+                                        enabled:!root.downloading && !root.running && !root.busy;
+                                        clicked=> {
+                                            root.action("browse");
+                                        }
+                                    }
+                                }
+                                HorizontalLayout  {
+                                    spacing:8px;
+                                    ActionButton  {
+                                        label:root.en ? "Verify" : "Проверить";
+                                        enabled:!root.busy && !root.downloading && !root.running;
+                                        clicked=> {
+                                            root.action("verify");
+                                        }
+                                    }
+                                    ActionButton  {
+                                        label:root.en ? "Folder" : "Папка";
+                                        clicked=> {
+                                            root.action("folder");
+                                        }
+                                    }
+                                    ActionButton  {
+                                        label:root.en ? "Logs" : "Логи";
+                                        clicked=> {
+                                            root.action("logs");
+                                        }
+                                    }
+                                    ActionButton  {
+                                        label:root.en ? "Screenshots" : "Скриншоты";
+                                        clicked=> {
+                                            root.action("screenshots");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                          }
+                        }
+                        if root.tab=="news" : ScrollView  {
+                            vertical-stretch:1;
+                            viewport-height:news-layout.preferred-height;
+                            news-layout:=VerticalLayout  {
+                                spacing:14px;
+                                for item[index] in root.news : Rectangle  {
+                                    height:210px;
+                                    background:#1d2a38;
+                                    border-radius:6px;
+                                    HorizontalLayout  {
+                                        padding:16px;
+                                        spacing:18px;
+                                        Image  {
+                                            width:150px;
+                                            height:110px;
+                                            source:item.image;
+                                            image-fit:cover;
+                                        }
+                                        VerticalLayout  {
+                                            spacing:8px;
+                                            Text  {
+                                                text:item.title;
+                                                color:#eff5fb;
+                                                font-size:18px;
+                                                font-weight:600;
+                                                wrap:word-wrap;
+                                                min-height:0px;
+                                                max-height:50px;
+                                                overflow:elide;
+                                            }
+                                            Text  {
+                                                text:item.body;
+                                                color:#93a9be;
+                                                font-size:13px;
+                                                wrap:word-wrap;
+                                                max-height:70px;
+                                                min-height:0px;
+                                                overflow:elide;
+                                            }
+                                            ActionButton  {
+                                                label:root.en ? "Read more" : "Читать";
+                                                clicked=> {
+                                                    root.action("article:"+index);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                if root.news.length==0 : Text  {
+                                    text:root.en ? "No news loaded" : "Новости пока не загружены";
+                                    color:#869db5;
+                                }
+                            }
+                        }
+                        if root.tab=="optimization" : OptimizationPanel {
+                            compact:root.height<600px;
+                            vertical-stretch:1;
+                            en:root.en; can-save:!root.busy;
+                            rows:root.opt-rows; tunnel-rows:root.opt-tunnels;
+                            cpus:root.opt-cpus; cpu-active<=>root.opt-cpu-active;
+                            cpu-supported:root.opt-cpu-supported;cpu-status:root.opt-cpu-status;
+                            hardware-ru:root.opt-hardware-ru;hardware-en:root.opt-hardware-en;
+                            active<=>root.opt-active;profile-name<=>root.opt-name;dirty<=>root.opt-dirty;
+                            category<=>root.opt-category;region<=>root.opt-region;search-mode<=>root.opt-search-mode;
+                            network-busy:root.opt-network-busy;network-status:root.opt-network-status;
+                            network-best:root.opt-network-best;
+                            preview:root.opt-preview;
+                            action(a)=>{root.action(a);}
+                            edit(i,v,b)=>{root.opt-edit(i,v,b);}
+                        }
+                        if root.tab=="settings" : ScrollView  {
+                            vertical-stretch:1;
+                            viewport-height:settings-layout.preferred-height;
+                            settings-layout:=VerticalLayout  {
+                                spacing:15px;
+                                Text  {
+                                    text:root.en ? "GAME" : "ИГРА";
+                                    color:#edb06d;
+                                    font-size:12px;
+                                    font-weight:700;
+                                }
+                                CheckBox {
+                                    text:root.en ? "Verify files before launching the game" : "Проверять файлы перед запуском игры";
+                                    checked<=>root.verify-files-on-launch;
+                                }
+                                Text {
+                                    text:root.en ? "Off by default. Game updates and manual verification remain available." : "По умолчанию выключено. Обновления игры и ручная проверка сохраняются.";
+                                    color:#718ca5;
+                                    font-size:12px;
+                                    wrap:word-wrap;
+                                }
+                                HorizontalLayout  {
+                                    Text  {
+                                        text:root.en ? "Memory" : "Оперативная память";
+                                        color:#c3d3e2;
+                                        width:190px;
+                                        vertical-alignment:center;
+                                    }
+                                    Slider  {
+                                        enabled:!root.opt-applied-active;
+                                        value<=>root.ram;
+                                        minimum:0;
+                                        maximum:1;
+                                    }
+                                    Text  {
+                                        text:root.ram-label;
+                                        color:#a8bed2;
+                                        width:90px;
+                                        vertical-alignment:center;
+                                    }
+                                }
+                                if root.opt-applied-active : Text {
+                                    text:root.en ? "RAM is set by the saved optimization profile. Open Optimization to change it." : "RAM задаётся сохранённым профилем оптимизации. Изменить её можно во вкладке «Оптимизация».";
+                                    color:#d5b079;font-size:12px;wrap:word-wrap;
+                                }
+                                HorizontalLayout  {
+                                    Text  {
+                                        text:root.en ? "Close launcher" : "Закрывать лаунчер";
+                                        color:#c3d3e2;
+                                        width:190px;
+                                        vertical-alignment:center;
+                                    }
+                                    ComboBox  {
+                                        model:root.en ? ["On game start","On game exit","Never"] : ["При запуске игры","При выходе из игры","Никогда"];
+                                        current-index<=>root.exit-mode;
+                                    }
+                                }
+                                Text  {
+                                    text:root.en ? "DOWNLOADS" : "ЗАГРУЗКИ";
+                                    color:#edb06d;
+                                    font-size:12px;
+                                    font-weight:700;
+                                }
+                                HorizontalLayout  {
+                                    Text  {
+                                        text:root.en ? "P2P mode" : "Режим P2P";
+                                        color:#c3d3e2;
+                                        width:190px;
+                                        vertical-alignment:center;
+                                    }
+                                    ComboBox  {
+                                        model:root.en ? ["Always","Unmetered connections","Never"] : ["Всегда","Кроме лимитных подключений","Никогда"];
+                                        current-index<=>root.p2p;
+                                    }
+                                }
+                                HorizontalLayout  {
+                                    Text  {
+                                        text:root.en ? "Download / upload, KiB/s" : "Загрузка / отдача, КиБ/с";
+                                        color:#c3d3e2;
+                                        width:190px;
+                                        vertical-alignment:center;
+                                    }
+                                    Input  {
+                                        text<=>root.download-limit;
+                                        placeholder:"0";
+                                    }
+                                    Input  {
+                                        text<=>root.upload-limit;
+                                        placeholder:"0";
+                                    }
+                                }
+                                Text  {
+                                    text:root.en ? "0 means unlimited. Limits apply on the next download." : "0 — без ограничений. Лимиты применяются к следующей загрузке.";
+                                    color:#718ca5;
+                                    font-size:12px;
+                                    wrap:word-wrap;
+                                }
+                                CheckBox  {
+                                    text:root.en ? "Launch after downloading" : "Запускать игру после загрузки";
+                                    checked<=>root.start-on-downloaded;
+                                }
+                                CheckBox  {
+                                    text:root.en ? "Show Windows Defender status" : "Проверять состояние Windows Defender";
+                                    checked<=>root.defender;
+                                }
+                                HorizontalLayout  {
+                                    spacing:8px;
+                                    ActionButton  {
+                                        label:root.en ? "Check Defender" : "Проверить Defender";
+                                        enabled:!root.busy && !root.downloading && !root.running;
+                                        clicked=> {
+                                            root.action("defender-status");
+                                        }
+                                    }
+                                    ActionButton  {
+                                        label:root.en ? "Add game exclusion" : "Добавить игру в исключения";
+                                        enabled:!root.busy && !root.running && !root.downloading;
+                                        clicked=> {
+                                            root.confirm-action="defender-add";
+                                            root.confirm-title=root.en ? "Add a Defender exclusion?" : "Добавить исключение Defender?";
+                                            root.confirm-body=root.en ? "The selected game directory will be excluded from Microsoft Defender scanning. Windows will request administrator approval." : "Выбранный каталог игры будет исключён из проверки Microsoft Defender. Windows запросит права администратора.";
+                                        }
+                                    }
+                                }
+                                if root.defender-status!="" : Text {
+                                    text:root.defender-status;
+                                    color:#9fb5ca;
+                                    font-size:12px;
+                                    wrap:word-wrap;
+                                }
+                                Text  {
+                                    text:root.en ? "LAUNCHER" : "ЛАУНЧЕР";
+                                    color:#edb06d;
+                                    font-size:12px;
+                                    font-weight:700;
+                                }
+                                CheckBox  {
+                                    text:root.en ? "Minimize to tray on close" : "Сворачивать в трей при закрытии";
+                                    checked<=>root.tray;
+                                }
+                                CheckBox  {
+                                    text:root.en ? "Start with Windows" : "Запускать вместе с Windows";
+                                    checked<=>root.autostart;
+                                }
+                                Text  {
+                                    text:root.en ? "Previous EXBO installation (optional)" : "Прежняя установка EXBO (необязательно)";
+                                    color:#9fb7cc;
+                                    font-size:12px;
+                                    wrap:word-wrap;
+                                }
+                                Input  {
+                                    text<=>root.legacy-root;
+                                    placeholder:root.en ? "Leave empty on a new PC" : "На новом ПК оставьте пустым";
+                                }
+                                HorizontalLayout  {
+                                    spacing:8px;
+                                    ActionButton  {
+                                        label:root.en ? "Save settings" : "Сохранить настройки";
+                                        primary:true;
+                                        enabled:!root.busy && !root.downloading && !root.running;
+                                        clicked=> {
+                                            root.action("save-settings");
+                                        }
+                                    }
+                                    ActionButton  {
+                                        label:root.en ? "Repair all files" : "Восстановить все файлы";
+                                        enabled:root.page=="main" && root.servers.length>0 && !root.busy && !root.running && !root.downloading;
+                                        clicked=> {
+                                            root.confirm-action="repair";
+                                            root.confirm-title=root.en ? "Repair all files?" : "Восстановить все файлы?";
+                                            root.confirm-body=root.en ? "Modified files, including exclusions, will be restored." : "Изменённые файлы, включая исключения, будут восстановлены из дистрибутива.";
+                                        }
+                                    }
+                                }
+                                HorizontalLayout  {
+                                    spacing:8px;
+                                    ActionButton  {
+                                        label:root.en ? "Create shortcut" : "Создать ярлык";
+                                        enabled:root.page=="main" && root.servers.length>0;
+                                        clicked=> {
+                                            root.action("shortcut");
+                                        }
+                                    }
+                                    ActionButton  {
+                                        label:root.en ? "Crash reports" : "Отчёты о сбоях";
+                                        enabled:root.page=="main" && root.servers.length>0;
+                                        clicked=> {
+                                            root.action("crashes");
+                                        }
+                                    }
+                                    ActionButton  {
+                                        label:root.en ? "Remove game" : "Удалить игру";
+                                        enabled:root.page=="main" && root.servers.length>0 && !root.busy && !root.running && !root.downloading;
+                                        clicked=> {
+                                            root.confirm-action="delete";
+                                            root.confirm-title=root.en ? "Remove game files?" : "Удалить файлы игры?";
+                                            root.confirm-body=root.en ? "Manifest files will be removed. Saves and other files are kept." : "Файлы из манифеста будут удалены. Сохранения и прочие файлы останутся.";
+                                        }
+                                    }
+                                }
+                                ActionButton  {
+                                    label:root.en ? "About" : "О программе";
+                                    clicked=> {
+                                        root.show-about=true;
+                                    }
+                                }
+                                ActionButton  {
+                                    label:root.en ? "Check / repair built-in components" : "Проверить / восстановить компоненты";
+                                    enabled:!root.busy && !root.downloading && !root.running;
+                                    clicked=> {
+                                        root.action("launcher-update");
+                                    }
+                                }
+                                Text  {
+                                    text:root.en ? "Rust launcher update manifest (HTTPS URL)" : "Манифест обновлений Rust-лаунчера (HTTPS URL)";
+                                    color:#9fb7cc;
+                                    font-size:12px;
+                                }
+                                Input  {
+                                    text<=>root.update-feed;
+                                    placeholder:"https://example.org/launcher/update.json";
+                                }
+                                ActionButton  {
+                                    label:root.en ? "Check Rust launcher updates" : "Проверить обновления Rust-лаунчера";
+                                    enabled:!root.busy && !root.downloading && !root.running;
+                                    clicked=> {
+                                        root.action("check-update");
+                                    }
+                                }
+                                if root.accounts.length>0 : HorizontalLayout  {
+                                    ComboBox  {
+                                        model:root.accounts;
+                                        current-value<=>root.selected-account;
+                                    }
+                                    ActionButton  {
+                                        label:root.en ? "Forget account" : "Забыть аккаунт";
+                                        enabled:!root.busy && !root.running && !root.downloading;
+                                        clicked=> {
+                                            root.action("forget-account");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if root.license-required : Rectangle  {
+                            height:106px;
+                            background:#39332a;
+                            border-radius:6px;
+                            VerticalLayout  {
+                                padding:13px;
+                                spacing:8px;
+                                Text  {
+                                    text:root.en ? "Review and accept the EXBO license agreement." : "Прочитайте и примите лицензионное соглашение EXBO.";
+                                    color:#e6c89d;
+                                    wrap:word-wrap;
+                                }
+                                HorizontalLayout  {
+                                    spacing:8px;
+                                    ActionButton  {
+                                        label:root.en ? "Read agreement" : "Открыть соглашение";
+                                        clicked=> {
+                                            root.action("license-open");
+                                        }
+                                    }
+                                    ActionButton  {
+                                        label:root.en ? "Accept" : "Принимаю";
+                                        primary:true;
+                                        enabled:!root.busy;
+                                        clicked=> {
+                                            root.action("license");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if root.tab!="settings" && root.tab!="optimization" : Rectangle  {
+                            height:110px;
+                            background:#1d2a38;
+                            border-radius:6px;
+                            VerticalLayout  {
+                                padding:17px;
+                                spacing:10px;
+                                HorizontalLayout  {
+                                    spacing:8px;
+                                    Text  {
+                                        text:root.status;
+                                        color:#a9c0d6;
+                                        vertical-alignment:center;
+                                        overflow:elide;
+                                    }
+                                    Rectangle  {
+                                        horizontal-stretch:1;
+                                    }
+                                    ActionButton  {
+                                        width:205px;
+                                        label:root.running ? (root.en ? "RUNNING" : "ИГРА ЗАПУЩЕНА") : root.downloading ? (root.paused ? (root.en ? "RESUME" : "ПРОДОЛЖИТЬ") : (root.en ? "PAUSE" : "ПАУЗА")) : root.installed ? (root.en ? "PLAY" : "ИГРАТЬ") : (root.en ? "INSTALL" : "УСТАНОВИТЬ");
+                                        primary:true;
+                                        enabled:root.servers.length>0 && !root.busy && !root.running && !root.license-required;
+                                        clicked=> {
+                                            root.action(root.downloading ? "pause" : root.installed ? "play" : "install");
+                                        }
+                                    }
+                                    if root.downloading : ActionButton  {
+                                        width:85px;
+                                        label:root.en ? "Cancel" : "Отмена";
+                                        clicked=> {
+                                            root.action("cancel");
+                                        }
+                                    }
+                                }
+                                Rectangle  {
+                                    height:4px;
+                                    background:#354b61;
+                                    border-radius:2px;
+                                    Rectangle  {
+                                        x:0px;
+                                        y:0px;
+                                        width:parent.width * root.progress;
+                                        height:100%;
+                                        background:#ed9435;
+                                        border-radius:2px;
+                                    }
+                                }
+                                Text  {
+                                    text:root.progress-label;
+                                    color:#728fa9;
+                                    font-size:11px;
+                                }
+                            }
+                        }
+                        if root.error-message!="" : Text  {
+                            text:root.error-message;
+                            color:#ff9e92;
+                            font-size:12px;
+                            wrap:word-wrap;
+                            max-height:60px;
+                            overflow:elide;
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle  {
+            height:28px;
+            background:#0f151d;
+            HorizontalLayout  {
+                padding-left:20px;
+                padding-right:20px;
+                Text  {
+                    text:"EXBO Launcher New  ·  " + root.app-version;
+                    color:#4d6983;
+                    font-size:10px;
+                    vertical-alignment:center;
+                }
+                Rectangle  {
+                    horizontal-stretch:1;
+                }
+                Text  {
+                    text:root.busy ? (root.en ? "Working…" : "Выполняется операция…") : root.status;
+                    color:#607e99;
+                    font-size:10px;
+                    vertical-alignment:center;
+                    overflow:elide;
+                }
+            }
+        }
+    }
+    if root.confirm-action!="" : Rectangle  {
+        background:#000000aa;
+        TouchArea  {
+        }
+        Rectangle  {
+            width:500px;
+            height:240px;
+            x:(parent.width - self.width)/2;
+            y:(parent.height - self.height)/2;
+            background:#253547;
+            border-radius:8px;
+            VerticalLayout  {
+                padding:28px;
+                spacing:18px;
+                Text  {
+                    text:root.confirm-title;
+                    wrap:word-wrap;
+                    color:#eff5fb;
+                    font-size:22px;
+                    font-weight:700;
+                }
+                Text  {
+                    text:root.confirm-body;
+                    color:#adc4d9;
+                    wrap:word-wrap;
+                }
+                Rectangle  {
+                    vertical-stretch:1;
+                }
+                HorizontalLayout  {
+                    spacing:10px;
+                    ActionButton  {
+                        label:root.en ? "Cancel" : "Отмена";
+                        clicked=> {
+                            root.confirm-action="";
+                        }
+                    }
+                    ActionButton  {
+                        label:root.en ? "Confirm" : "Подтвердить";
+                        primary:true;
+                        clicked=> {
+                            root.action(root.confirm-action);
+                            root.confirm-action="";
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if root.show-about : Rectangle  {
+        background:#000000bb;
+        TouchArea  {
+        }
+        Rectangle  {
+            width:400px;
+            height:290px;
+            x:(parent.width - self.width)/2;
+            y:(parent.height - self.height)/2;
+            background:#253547;
+            border-radius:8px;
+            VerticalLayout  {
+                padding:24px;
+                spacing:12px;
+                Text  {
+                    text:"EXBO Launcher New " + root.app-version;
+                    color:#eff5fb;
+                    font-size:20px;
+                    font-weight:700;
+                }
+                AboutSlint  {
+                }
+                ActionButton  {
+                    label:root.en ? "Close" : "Закрыть";
+                    clicked=> {
+                        root.show-about=false;
+                    }
+                }
+            }
+        }
+    }
+}

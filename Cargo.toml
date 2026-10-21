@@ -1,0 +1,46 @@
+[package]
+name = "ExboLauncherNew"
+version = "1.0.0"
+edition = "2024"
+license-file = "LICENSE"
+
+[dependencies]
+slint = "=1.8.0"
+i-slint-backend-winit = "=1.8.0"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "io-util"] }
+
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls", "gzip"] }
+sha1 = "0.10"
+md-5 = "0.10"
+bcrypt = "0.19"
+base64 = "0.23"
+flate2 = "1"
+uuid = { version = "1", features = ["v4"] }
+url = "2"
+librqbit = { version = "9.0.1", default-features = false, features = ["rust-tls"] }
+rfd = "0.15"
+tray-icon = "0.21"
+image = { version = "0.24", default-features = false, features = ["png"] }
+sha2 = "0.10"
+semver = "1"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = ["Win32_Security_Cryptography", "Win32_System_Memory", "Win32_Foundation", "Win32_System_Registry", "Win32_System_SystemInformation", "Win32_System_Threading", "Win32_System_Diagnostics_ToolHelp", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+
+[build-dependencies]
+slint-build = "=1.8.0"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[patch.crates-io]
+librqbit-core = { path = "vendor/librqbit-core" }
+
+

@@ -1,0 +1,195 @@
+import { CheckBox, ComboBox, ScrollView, ListView } from "std-widgets.slint";
+export struct OptimizationRow {
+    key:string, label-ru:string, label-en:string, help-ru:string, help-en:string,
+    category:int, value:string, boolean:bool, checked:bool, range:string, error:string
+}
+export struct TunnelRow { name:string, details:string, available:bool }
+component OptButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> enabled:true;
+    in property <bool> primary:false;
+    callback clicked;
+    min-height:34px;
+    border-radius:5px;
+    background:!root.enabled ? #252c34 : root.primary ? #ed9435 : area.has-hover ? #3a4858 : #293644;
+    Text { text:root.label; color:!root.enabled ? #67788a : root.primary ? #10161d : #e1eaf2; font-size:12px; horizontal-alignment:center; vertical-alignment:center; overflow:elide; }
+    area:=TouchArea { enabled:root.enabled; clicked=>{root.clicked();} }
+}
+component OptInput inherits Rectangle {
+    in-out property <string> text;
+    in property <bool> invalid:false;
+    callback edited;
+    height:34px; min-width:90px; border-radius:4px;
+    background:#111b26; border-width:1px; border-color:root.invalid ? #ef897d : edit.has-focus ? #ed9435 : #3a4a5b;
+    edit:=TextInput { x:9px; width:parent.width - 18px; height:100%; text<=>root.text; color:#e5eef8; single-line:true; vertical-alignment:center; edited=>{root.edited();} }
+}
+export struct CpuRow { id:int, checked:bool, available:bool }
+
+export component OptimizationPanel inherits Rectangle {
+    in property <bool> compact:false;
+    in property <bool> en:false;
+    in property <bool> can-save:true;
+    in property <[OptimizationRow]> rows;
+    in property <[TunnelRow]> tunnel-rows;
+    in property <string> hardware-ru;
+    in property <string> hardware-en;
+    in-out property <bool> active:false;
+    in-out property <string> profile-name;
+    in-out property <bool> dirty:false;
+    in-out property <int> category:0;
+    in-out property <int> region:0;
+    in-out property <int> search-mode:0;
+    in property <bool> network-busy:false;
+    in property <bool> network-best:false;
+    in property <string> network-status;
+    in property <string> preview;
+    in property <[CpuRow]> cpus;
+    in-out property <bool> cpu-active:false;
+    in property <bool> cpu-supported:false;
+    in property <string> cpu-status;
+    callback action(string);
+    callback edit(int,string,bool);
+    VerticalLayout {
+        spacing:10px;
+        if root.category!=3 : HorizontalLayout {
+            spacing:10px;
+            CheckBox { text:root.en ? "Enable JVM profile" : "Включить JVM-профиль"; checked<=>root.active; toggled=>{root.dirty=true;} }
+            Text {text:root.en ? "Profile:" : "Профиль:";color:#8fa9c1;font-size:11px;vertical-alignment:center;}
+            OptInput { text<=>root.profile-name; horizontal-stretch:1; edited=>{root.dirty=true;} }
+        }
+        if !root.compact && root.category!=3 : Text { text:root.en ? root.hardware-en : root.hardware-ru; color:#8fa9c1; font-size:11px; wrap:word-wrap; }
+        if root.category!=3 : HorizontalLayout {
+            spacing:6px;
+            OptButton {label:root.en ? "Auto v1.1.2" : "Авто v1.1.2";clicked=>{root.action("opt-auto");}}
+            OptButton {label:"Aikar";clicked=>{root.action("opt-aikar");}}
+            OptButton {label:root.en ? "Import JSON" : "Импорт JSON";clicked=>{root.action("opt-import");}}
+            OptButton {label:root.en ? "Export JSON" : "Экспорт JSON";clicked=>{root.action("opt-export");}}
+        }
+        HorizontalLayout {
+            spacing:4px;
+            for title[index] in (root.en ? ["Memory","G1 GC","JIT / Java","Network","Help","CPU"] : ["Память","G1 GC","JIT / Java","Сеть","Справка","Процессор"]) : OptButton {
+                label:title; primary:root.category==index; clicked=>{root.category=index;scroll.viewport-y=0px;}
+            }
+        }
+        scroll:=ScrollView {
+            vertical-stretch:1;
+            viewport-height:content.preferred-height;
+            content:=VerticalLayout {
+                spacing:0px;
+                if root.category==5 : VerticalLayout {
+                    spacing:12px;
+                    CheckBox {
+                        text:root.en ? "Limit game to selected CPUs" : "Ограничить игру выбранными CPU";
+                        checked<=>root.cpu-active;
+                        enabled:root.cpu-supported || root.cpu-active;
+                        toggled=>{root.dirty=true;}
+                    }
+                    if root.cpu-status!="" : Text {text:root.cpu-status;color:#e0ae70;font-size:12px;wrap:word-wrap;}
+                    HorizontalLayout {
+                        spacing:8px;
+                        OptButton {label:root.en ? "Select all" : "Выбрать все";enabled:root.cpu-active && root.cpu-supported;clicked=>{root.action("opt-cpu-all");}}
+                        OptButton {label:root.en ? "Clear selection" : "Снять все";enabled:root.cpu-active;clicked=>{root.action("opt-cpu-clear");}}
+                    }
+                    Rectangle {
+                        height:Math.ceil(root.cpus.length / 4) * 36px;
+                        for cpu[index] in root.cpus : CheckBox {
+                            x:(index - Math.floor(index / 4) * 4) * parent.width / 4;
+                            y:Math.floor(index / 4) * 36px;
+                            width:parent.width / 4;
+                            height:32px;
+                            text:"CPU " + cpu.id + (cpu.available ? "" : " ×");
+                            checked:cpu.checked;
+                            enabled:root.cpu-active && cpu.available;
+                            toggled=>{root.action("opt-cpu:"+index);}
+                        }
+                    }
+                    Text {
+                        text:root.en ? "Off: Windows chooses processors automatically. On: only the checked logical processors are allowed. CPU numbers match Task Manager, including SMT threads; these are not necessarily separate physical cores. Applies on the next game start, independently of the JVM profile switch." : "Выключено: Windows сама выбирает процессоры. Включено: разрешены только отмеченные логические процессоры. Нумерация CPU — как в диспетчере задач, включая потоки SMT; это не обязательно отдельные физические ядра. Применяется со следующего запуска игры независимо от переключателя JVM-профиля.";
+                        color:#a6b8cb; font-size:12px; wrap:word-wrap;
+                    }
+                    Text {
+                        text:root.en ? "EXENS and the game it starts inherit the selection. Fewer CPUs can reduce performance; the default is unrestricted. Select at least one CPU. Full JSON export includes this choice; JVM-only export does not." : "Выбор наследуют EXENS и запущенная им игра. Меньшее число CPU может снизить производительность; по умолчанию ограничения нет. Выберите хотя бы один CPU. Полный экспорт JSON сохраняет выбор; экспорт только JVM его не содержит.";
+                        color:#829bb3; font-size:11px; wrap:word-wrap;
+                    }
+                }
+                if root.category==0 && !root.compact : Text {
+                    text:root.en ? "The profile replaces the normal RAM slider while enabled. Changes apply on the next game start. Auto adapts the upstream v1.1.2 profile to this PC; Aikar is an alternative, not a promise of higher FPS." : "Включённый профиль заменяет обычный ползунок RAM. Изменения действуют со следующего запуска игры. Авто подбирает профиль v1.1.2 под этот ПК; Aikar — альтернативный вариант, без гарантии прироста FPS.";
+                    color:#a6b8cb; font-size:12px; wrap:word-wrap;
+                }
+                if root.category==3 : VerticalLayout {
+                    spacing:10px;
+                    Text {text:root.en ? "Experimental routing overrides are independent of the JVM switch. Empty address = game choice. No latency probes run during game startup." : "Экспериментальный выбор маршрута работает независимо от переключателя JVM. Пустой адрес — выбор игры. При запуске игры измерения не выполняются."; color:#a6b8cb; font-size:12px; wrap:word-wrap;}
+                    HorizontalLayout {
+                        spacing:8px;
+                        ComboBox { model:["RU","EU","NA","SEA","NEA"]; current-index<=>root.region; selected(_)=>{root.action("opt-region");} }
+                        OptButton { label:root.network-busy ? (root.en ? "Restart search" : "Начать заново") : (root.en ? "Find / measure nodes" : "Найти / измерить узлы"); horizontal-stretch:1; clicked=>{root.action("opt-measure");} }
+                        if root.network-busy : OptButton {label:root.en ? "Cancel" : "Отмена";clicked=>{root.action("opt-cancel");}}
+                    }
+                    ComboBox {model:root.en ? ["Total RTT","Client RTT","Server RTT","Stability","Backend weight"] : ["Полный RTT","RTT клиента","RTT сервера","Стабильность","Вес backend"]; current-index<=>root.search-mode; selected(_)=>{root.dirty=true;root.action("opt-mode");} }
+                    OptButton {label:root.en ? "Select best measured node" : "Выбрать лучший по замерам";enabled:root.network-best && !root.network-busy;primary:true;clicked=>{root.action("opt-tunnel-best");}}
+                    Text {text:root.network-status; color:#d6b785; font-size:12px; wrap:word-wrap;}
+                    if root.tunnel-rows.length>0 : ListView {
+                        height:root.compact ? 220px : 300px;
+                        for node[index] in root.tunnel-rows : Rectangle {
+                            height:max(115px,node-content.preferred-height + 8px);
+                            border-radius:4px; background:#1b2836;
+                            node-content:=VerticalLayout { padding:10px; spacing:5px;
+                                HorizontalLayout {
+                                    Text {text:node.name; color:#dce8f4; font-size:12px; overflow:elide; horizontal-stretch:1; vertical-alignment:center;}
+                                    OptButton {width:85px; label:root.en ? "Select" : "Выбрать";enabled:node.available && !root.network-busy;clicked=>{root.action("opt-tunnel:"+index);}}
+                                }
+                                Text {text:node.details; color:#91acc3; font-size:11px; wrap:word-wrap;}
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing:6px;
+                        OptButton {label:root.en ? "Import JSON" : "Импорт JSON";clicked=>{root.action("opt-import");}}
+                        OptButton {label:root.en ? "Export JSON" : "Экспорт JSON";clicked=>{root.action("opt-export");}}
+                    }
+                    Text {text:root.en ? "10 fresh UDP probes per node, 100 ms apart; up to 8 nodes measured concurrently. Ranking = median + half the gap to P90 + 1000 × failed-reply fraction; Stability uses P90 + the failure penalty. P90 is the 90th percentile. Best requires a completed comparison and at least 5 replies. Score is a selection cost, not game ping. Historical cache never chooses the winner." : "10 свежих UDP-проб на узел с интервалом 100 мс, до 8 узлов одновременно. Рейтинг = медиана + половина разницы до P90 + 1000 × доля неответивших проб; «Стабильность» использует P90 + штраф. P90 — 90-й процентиль. «Лучший» доступен после сравнения всех узлов при минимум 5 ответах. Оценка — стоимость выбора, а не пинг игры. Старый кэш на победителя не влияет."; color:#829bb3; font-size:11px; wrap:word-wrap;}
+                }
+                for row[index] in root.rows : VerticalLayout {
+                  padding-top:row.category==root.category ? 12px : 0px;
+                  if row.category==root.category : Rectangle {
+                    border-radius:5px; background:#1b2735; border-width:1px; border-color:row.error!="" ? #b76d67 : #283a4b;
+                    VerticalLayout {
+                        padding:12px; spacing:7px;
+                        HorizontalLayout {
+                            spacing:12px;
+                            Text {text:root.en ? row.label-en : row.label-ru; color:#e2edf7; font-size:13px; font-weight:600; wrap:word-wrap; horizontal-stretch:1; vertical-alignment:center;}
+                            if row.boolean : CheckBox {checked:row.checked; toggled=>{root.edit(index,row.value,self.checked);root.dirty=true;} }
+                            if !row.boolean : OptInput {width:row.category==3 ? 230px : 110px; text:row.value; invalid:row.error!=""; edited=>{root.edit(index,self.text,row.checked);root.dirty=true;} }
+                        }
+                        Text {text:root.en ? row.help-en : row.help-ru; color:#9fb3c8; font-size:12px; wrap:word-wrap;}
+                        Text {text:row.key+(row.range!="" ? " · "+row.range : ""); color:#69869f; font-size:10px; wrap:word-wrap;}
+                        if row.error!="" : Text {text:row.error; color:#ffaaa0; font-size:11px; wrap:word-wrap;}
+                    }
+                  }
+                }
+                if root.category==4 : VerticalLayout {
+                    spacing:12px;
+                    if root.compact : Text {text:root.en ? root.hardware-en : root.hardware-ru;color:#8fa9c1;font-size:11px;wrap:word-wrap;}
+                    Text {text:root.en ? "Profiles target the game's 64-bit Java 9. The launcher checks RAM, large-page privileges and Java compatibility. Existing external IFEO interceptors must be uninstalled through their own utility to avoid applying two profiles." : "Профили рассчитаны на 64-битную Java 9 игры. Лаунчер проверяет RAM, доступность больших страниц и совместимость Java. Если уже установлен внешний IFEO-перехватчик, удалите его через исходную утилиту, чтобы не применять два профиля.";color:#b4c7d9;font-size:12px;wrap:word-wrap;}
+                    Text {text:root.en ? "Built-in profile behavior:\n• G1GC collects garbage in regions; Adaptive IHOP adjusts concurrent marking.\n• Experimental VM options unlock the G1 parameters shown in this menu.\n• ParallelRefProcEnabled processes references in parallel.\n• DisableExplicitGC ignores explicit System.gc requests.\n• Biased locking is disabled; this changes lock optimization.\n• DisableAttachMechanism disables external JVM attach diagnostics.\n• The NIO cached buffer limit is 128 KiB per buffer.\n• JIT code cache is split 5% / 48% / remainder between non-method, profiled and non-profiled code.\n• Xms equals Xmx: the entire configured heap is committed at startup." : "Базовые функции профиля:\n• G1GC убирает мусор по регионам; Adaptive IHOP подстраивает начало фоновой разметки.\n• Experimental VM options разрешает параметры G1 из этого меню.\n• ParallelRefProcEnabled обрабатывает ссылки параллельно.\n• DisableExplicitGC игнорирует явные запросы System.gc.\n• Biased locking выключен — меняется оптимизация блокировок.\n• DisableAttachMechanism отключает внешнюю attach-диагностику JVM.\n• Кэш NIO ограничен 128 КиБ на буфер.\n• Кэш JIT делится на 5% / 48% / остаток для неметодного, профилированного и непрофилированного кода.\n• Xms равен Xmx: весь указанный heap резервируется при старте.";color:#9fb3c8;font-size:12px;wrap:word-wrap;}
+                    Text {text:root.en ? "Import previews settings without applying them. Full JSON exports include JVM settings, five region overrides, search mode and exclusions. JVM-only JSON is compatible with the upstream wrapper. Account sessions and personal launcher settings are never exported." : "Импорт открывает настройки для просмотра и не применяет их автоматически. Полный JSON содержит JVM-профиль, туннели пяти регионов, способ поиска и исключения. JSON только JVM совместим с исходной утилитой. Сессии аккаунтов и личные настройки лаунчера не экспортируются.";color:#9fb3c8;font-size:12px;wrap:word-wrap;}
+                    HorizontalLayout {spacing:6px;
+                        OptButton {label:root.en ? "Preview flags" : "Показать флаги";clicked=>{root.action("opt-preview");}}
+                        OptButton {label:root.en ? "Export JVM JSON" : "Экспорт JVM JSON";clicked=>{root.action("opt-export-jvm");}}
+                        OptButton {label:root.en ? "Project / docs" : "Проект / документация";clicked=>{root.action("opt-source");}}
+                    }
+                    Text {text:root.preview; color:#b6cbe0; font-size:11px; wrap:word-wrap;}
+                    OptButton {label:root.en ? "Reset optimization settings" : "Сбросить настройки оптимизации";clicked=>{root.action("opt-reset");}}
+                    Text {text:root.en ? "Old external optimizer blocks game launch? Export the recovery script. It works even if service.exe/wrapper.exe was deleted. Default is preview only. Review the full paths: a filename alone does not prove ownership. Applying removal asks for each entry and UAC, backs up Debugger values, and preserves registry keys, ACLs and unrelated data." : "Старый внешний оптимизатор мешает запуску? Сохраните скрипт восстановления. Он работает и после удаления service.exe/wrapper.exe. По умолчанию выполняется только просмотр. Проверяйте полные пути: одного имени файла недостаточно для определения владельца. Удаление требует подтверждения каждой записи и UAC; Debugger сохраняется в резервную копию, ключи реестра, ACL и другие данные остаются.";color:#9fb3c8;font-size:12px;wrap:word-wrap;}
+                    OptButton {label:root.en ? "Export legacy recovery script" : "Сохранить скрипт восстановления";clicked=>{root.action("opt-legacy-export");}}
+                }
+            }
+        }
+        HorizontalLayout {
+            spacing:8px;
+            OptButton {label:root.en ? "Save and apply" : "Сохранить и применить";primary:true;enabled:root.can-save;clicked=>{root.action("opt-save");}}
+            OptButton {label:root.en ? "Revert edits" : "Отменить изменения";clicked=>{root.action("opt-revert");}}
+            Text {text:root.dirty ? (root.en ? "Unsaved" : "Не сохранено") : (root.en ? "Saved" : "Сохранено");color:root.dirty ? #e0ae70 : #73958b; font-size:11px; vertical-alignment:center;}
+        }
+    }
+}

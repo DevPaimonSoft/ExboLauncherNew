@@ -1,0 +1,10 @@
+/target
+/dist
+*.pdb
+*.ilk
+*.exp
+*.lib
+/launcher-data
+/.idea
+/.vs
+*.log

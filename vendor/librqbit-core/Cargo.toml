@@ -1,0 +1,108 @@
+
+[package]
+edition = "2024"
+name = "librqbit-core"
+version = "9.0.1"
+build = false
+autolib = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
+description = "Important utilities used throughout librqbit useful for working with torrents."
+documentation = "https://docs.rs/librqbit-core"
+readme = "README.md"
+license = "Apache-2.0"
+repository = "https://github.com/ikatson/rqbit"
+resolver = "2"
+
+[features]
+default = ["sha1-crypto-hash"]
+sha1-crypto-hash = ["sha1w/sha1-crypto-hash"]
+sha1-ring = ["sha1w/sha1-ring"]
+
+[lib]
+name = "librqbit_core"
+path = "src/lib.rs"
+
+[dependencies.anyhow]
+version = "1"
+
+[dependencies.bencode]
+version = "9.0.1"
+default-features = false
+package = "librqbit-bencode"
+
+[dependencies.buffers]
+version = "9.0.1"
+package = "librqbit-buffers"
+
+[dependencies.bytes]
+version = "1"
+
+[dependencies.chardetng]
+version = "1"
+
+[dependencies.clone_to_owned]
+version = "9.0.1"
+package = "librqbit-clone-to-owned"
+
+[dependencies.data-encoding]
+version = "2"
+
+[dependencies.directories]
+version = "6"
+
+[dependencies.encoding_rs]
+version = "0.8"
+
+[dependencies.hex]
+version = "0.4"
+
+[dependencies.itertools]
+version = "0.15"
+
+[dependencies.memchr]
+version = "2"
+
+[dependencies.parking_lot]
+version = "0.12"
+
+[dependencies.rand]
+version = "0.10"
+
+[dependencies.serde]
+version = "1"
+
+[dependencies.serde_derive]
+version = "1"
+
+[dependencies.sha1w]
+version = "9.0.1"
+optional = true
+default-features = false
+package = "librqbit-sha1-wrapper"
+
+[dependencies.thiserror]
+version = "2"
+
+[dependencies.tokio]
+version = "1"
+features = [
+    "rt-multi-thread",
+    "macros",
+    "time",
+]
+
+[dependencies.tokio-util]
+version = "0.7"
+
+[dependencies.tracing]
+version = "0.1"
+
+[dependencies.url]
+version = "2"
+default-features = false
+
+[dev-dependencies.serde_json]
+version = "1"

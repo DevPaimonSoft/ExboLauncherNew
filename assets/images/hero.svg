@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+  <defs>
+    <linearGradient id="base" x2="1" y2="1"><stop stop-color="#253b4b"/><stop offset="1" stop-color="#101a25"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#ba7232" stop-opacity=".25"/><stop offset="1" stop-color="#ba7232" stop-opacity="0"/></radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#7b9bb2" stroke-opacity=".07"/></pattern>
+  </defs>
+  <path fill="url(#base)" d="M0 0h1200v900H0z"/>
+  <ellipse cx="670" cy="280" rx="650" ry="540" fill="url(#glow)"/>
+  <path d="M530-150h220L1120 900H900zM-110 900h220L820-150H600z" fill="#d0b08d" opacity=".035"/>
+  <path d="M0 720L250 610 390 670 650 470 820 565 1000 420 1200 480V900H0z" fill="#132632"/>
+  <path d="M0 800L310 700 440 765 620 650 780 725 990 580 1200 670V900H0z" fill="#101e2a"/>
+  <path d="M0 0h1200v900H0z" fill="url(#grid)"/>
+  <path d="M75 110h210M75 110v75M1040 790h85v-75" fill="none" stroke="#ed9435" stroke-opacity=".35"/>
+  <circle cx="285" cy="110" r="3" fill="#ed9435" opacity=".6"/>
+</svg>
