@@ -20,6 +20,14 @@
 - Автоматический импорт данных из прежней установки EXBO.
 - Проверка обновлений лаунчера из указанного источника.
 
+
+## Интерфейс (GUI)
+
+![Main_1.jpg](imgs/Main_1.jpg)
+![Main_2.png](imgs/Main_2.png)
+![Optimization.png](imgs/Optimization.png)
+
+
 ## Сборка
 
 Для сборки необходимы Rust, Visual Studio Build Tools с компонентами C++ и Windows SDK.

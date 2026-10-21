@@ -126,7 +126,7 @@ export component LauncherWindow inherits Window  {
     in property <[NewsRow]> news;
     in property <image> news-fallback:@image-url("../assets/images/news-background.png");
     in-out property <int> selected-server:0;
-    in property <string> server-title:"STALCRAFT: X";
+    in property <string> server-title:"STALZONE";
     in property <string> server-description;
     in property <string> server-online;
     in property <image> fallback-background:@image-url("../assets/images/hero.svg");
@@ -277,7 +277,7 @@ export component LauncherWindow inherits Window  {
                             vertical-stretch:1;
                         }
                         Text  {
-                            text:"STALCRAFT: X";
+                            text:"STALZONE";
                             color:white;
                             font-size:root.width < 1000px ? 32px : 44px;
                             font-weight:800;

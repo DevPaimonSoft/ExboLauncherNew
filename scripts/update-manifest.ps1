@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Parameter(Mandatory)][string]$Executable,
     [Parameter(Mandatory)][string]$Version,
     [Parameter(Mandatory)][string]$DownloadUrl,

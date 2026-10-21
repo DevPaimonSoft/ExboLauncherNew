@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$Release,
     [string]$OutputDirectory = (Join-Path $PSScriptRoot '..\dist')
 )

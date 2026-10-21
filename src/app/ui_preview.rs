@@ -397,7 +397,7 @@ pub fn prepare(ui: &LauncherWindow, case: u8) -> &'static str {
                 }
                 12 => {
                     ui.set_tab("news".into());
-                    ui.set_news(Rc::new(VecModel::from(vec![NewsRow { title: "Длинный заголовок новости о событиях и обновлениях игрового мира STALCRAFT: X".into(), body: "Большой текст новости. Подробности события, новые возможности и изменения игрового мира. ".repeat(6).into(), image: ui.get_news_fallback() }])).into());
+                    ui.set_news(Rc::new(VecModel::from(vec![NewsRow { title: "Длинный заголовок новости о событиях и обновлениях игрового мира STALZONE".into(), body: "Большой текст новости. Подробности события, новые возможности и изменения игрового мира. ".repeat(6).into(), image: ui.get_news_fallback() }])).into());
                     "news-min.png"
                 }
                 13 => {
